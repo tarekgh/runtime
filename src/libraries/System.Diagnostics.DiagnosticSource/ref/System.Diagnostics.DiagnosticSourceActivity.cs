@@ -7,7 +7,7 @@
 
 namespace System.Diagnostics
 {
-    public partial class Activity
+    public partial class Activity : IDisposable
     {
         public Activity(string operationName) { }
         public System.Diagnostics.ActivityTraceFlags ActivityTraceFlags { get { throw null; } set { } }
@@ -33,8 +33,13 @@ namespace System.Diagnostics
 #endif
             get { throw null; }
         }
+
+        public bool IsAllDataRequested { get { throw null; } set { throw null; }}
         public System.Diagnostics.ActivityIdFormat IdFormat { get { throw null; } }
+        public System.Diagnostics.ActivityKind Kind { get; }
         public string OperationName { get { throw null; } }
+        public string DisplayName { get { throw null; } set { throw null; } }
+        public System.Diagnostics.ActivitySource Source { get { throw null; } }
         public System.Diagnostics.Activity? Parent { get { throw null; } }
         public string? ParentId { get { throw null; } }
         public System.Diagnostics.ActivitySpanId ParentSpanId { get { throw null; } }
@@ -43,9 +48,13 @@ namespace System.Diagnostics
         public System.Diagnostics.ActivitySpanId SpanId { get { throw null; } }
         public System.DateTime StartTimeUtc { get { throw null; } }
         public System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>> Tags { get { throw null; } }
+        public System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityEvent> Events { get { throw null; } }
+        public System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityLink> Links { get { throw null; } }
         public System.Diagnostics.ActivityTraceId TraceId { get { throw null; } }
         public string? TraceStateString { get { throw null; } set { } }
         public System.Diagnostics.Activity AddBaggage(string key, string? value) { throw null; }
+        public System.Diagnostics.Activity AddEvent(System.Diagnostics.ActivityEvent e) { throw null; }
+        public System.Diagnostics.Activity AddLink(System.Diagnostics.ActivityLink link) { throw null; }
         public System.Diagnostics.Activity AddTag(string key, string? value) { throw null; }
         public string? GetBaggageItem(string key) { throw null; }
         public System.Diagnostics.Activity SetEndTime(System.DateTime endTimeUtc) { throw null; }
@@ -55,6 +64,10 @@ namespace System.Diagnostics
         public System.Diagnostics.Activity SetStartTime(System.DateTime startTimeUtc) { throw null; }
         public System.Diagnostics.Activity Start() { throw null; }
         public void Stop() { }
+        public void Dispose()  { }
+        public void SetCustomProperty(string propertyName, object? propertyValue) { }
+        public object? GetCustomProperty(string propertyName) { throw null; }
+        public ActivityContext Context { get { throw null; } }
     }
     public enum ActivityIdFormat
     {
@@ -81,6 +94,23 @@ namespace System.Diagnostics
         public static bool operator !=(System.Diagnostics.ActivitySpanId spanId1, System.Diagnostics.ActivitySpanId spandId2) { throw null; }
         public string ToHexString() { throw null; }
         public override string ToString() { throw null; }
+    }
+    public sealed class ActivitySource : IDisposable
+    {
+        public ActivitySource(string name, System.Version version) { throw null; }
+        public string Name { get { throw null; } }
+        public System.Version Version { get { throw null; } }
+        public bool HasListeners { get { throw null; } }
+        public System.Diagnostics.Activity? StartActivity(string name, System.Diagnostics.ActivityKind kind = ActivityKind.Internal)  { throw null; }
+        public System.Diagnostics.Activity? StartActivity(string name, System.Diagnostics.ActivityKind kind, System.Diagnostics.ActivityContext parentContext, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>? tags = null, System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityLink>? links = null, System.DateTimeOffset startTime = default) { throw null; }
+        public System.Diagnostics.Activity? StartActivity(string name, System.Diagnostics.ActivityKind kind, string parentId, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>? tags = null, System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityLink>? links = null, System.DateTimeOffset startTime = default) { throw null; }
+        public void Dispose() { throw null; }
+        public static IDisposable AddActivityListener(
+                                System.Func<System.Diagnostics.ActivitySource, bool> listenToSource,
+                                System.Func<System.Diagnostics.ActivitySource, string, System.Diagnostics.ActivityKind, System.Diagnostics.ActivityContext, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>?, System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityLink>?, System.Diagnostics.ActivityDataRequest> getActivityDataRequestUsingContext,
+                                System.Func<System.Diagnostics.ActivitySource, string, System.Diagnostics.ActivityKind, string, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>?, System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityLink>?, System.Diagnostics.ActivityDataRequest> getActivityDataRequestUsingParentId,
+                                System.Action<System.Diagnostics.Activity> onActivityStarted,
+                                System.Action<System.Diagnostics.Activity> onActivityStopped)  { throw null; }
     }
     [System.FlagsAttribute]
     public enum ActivityTraceFlags
@@ -121,4 +151,50 @@ namespace System.Diagnostics
         public System.Diagnostics.Activity StartActivity(System.Diagnostics.Activity activity, object? args) { throw null; }
         public void StopActivity(System.Diagnostics.Activity activity, object? args) { }
     }
+    public enum ActivityDataRequest
+    {
+        None,
+        PropagationData,
+        AllData,
+        AllDataAndRecorded
+    }
+    public enum ActivityKind
+    {
+        Internal = 1,
+        Server = 2,
+        Client = 3,
+        Producer = 4,
+        Consumer = 5,
+    }
+    public sealed class ActivityEvent
+    {
+        public ActivityEvent(string name) {throw null; }
+        public ActivityEvent(string name, System.DateTimeOffset timestamp) { throw null; }
+        public ActivityEvent(string name, System.DateTimeOffset timestamp, System.Collections.Generic.IReadOnlyDictionary<string, object> attributes) { throw null; }
+        public ActivityEvent(string name, System.Collections.Generic.IReadOnlyDictionary<string, object> attributes) { throw null; }
+        public string Name { get { throw null; } }
+        public System.DateTimeOffset Timestamp { get { throw null; } }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object> Attributes { get { throw null; } }
+    }
+    public readonly struct ActivityContext : System.IEquatable<System.Diagnostics.ActivityContext>
+    {
+        public ActivityContext(System.Diagnostics.ActivityTraceId traceId, System.Diagnostics.ActivitySpanId spanId, System.Diagnostics.ActivityTraceFlags traceOptions, string? traceState = null) { throw null; }
+        public System.Diagnostics.ActivityTraceId TraceId { get; }
+        public System.Diagnostics.ActivitySpanId SpanId { get; }
+        public System.Diagnostics.ActivityTraceFlags TraceFlags { get; }
+        public string? TraceState { get; }
+        public static bool operator ==(System.Diagnostics.ActivityContext context1, System.Diagnostics.ActivityContext context2) { throw null; }
+        public static bool operator !=(System.Diagnostics.ActivityContext context1, System.Diagnostics.ActivityContext context2) { throw null; }
+        public bool Equals(System.Diagnostics.ActivityContext context) { throw null; }
+        public override bool Equals(object? obj) { throw null; }
+        public override int GetHashCode() { throw null; }
+    }
+    public readonly struct ActivityLink
+    {
+        public ActivityLink(System.Diagnostics.ActivityContext context) { throw null; }
+        public ActivityLink(System.Diagnostics.ActivityContext context, System.Collections.Generic.IReadOnlyDictionary<string, object>? attributes) { throw null; }
+        public System.Diagnostics.ActivityContext Context { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object>? Attributes { get; }
+    }
 }
+

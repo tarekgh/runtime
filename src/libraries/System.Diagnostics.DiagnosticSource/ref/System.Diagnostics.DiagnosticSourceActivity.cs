@@ -54,7 +54,6 @@ namespace System.Diagnostics
         public string? TraceStateString { get { throw null; } set { } }
         public System.Diagnostics.Activity AddBaggage(string key, string? value) { throw null; }
         public System.Diagnostics.Activity AddEvent(System.Diagnostics.ActivityEvent e) { throw null; }
-        public System.Diagnostics.Activity AddLink(System.Diagnostics.ActivityLink link) { throw null; }
         public System.Diagnostics.Activity AddTag(string key, string? value) { throw null; }
         public string? GetBaggageItem(string key) { throw null; }
         public System.Diagnostics.Activity SetEndTime(System.DateTime endTimeUtc) { throw null; }
@@ -97,10 +96,10 @@ namespace System.Diagnostics
     }
     public sealed class ActivitySource : IDisposable
     {
-        public ActivitySource(string name, System.Version version) { throw null; }
+        public ActivitySource(string name, string version = "") { throw null; }
         public string Name { get { throw null; } }
-        public System.Version Version { get { throw null; } }
-        public bool HasListeners { get { throw null; } }
+        public string Version { get { throw null; } }
+        public bool HasListeners() { throw null; }
         public System.Diagnostics.Activity? StartActivity(string name, System.Diagnostics.ActivityKind kind = ActivityKind.Internal)  { throw null; }
         public System.Diagnostics.Activity? StartActivity(string name, System.Diagnostics.ActivityKind kind, System.Diagnostics.ActivityContext parentContext, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>? tags = null, System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityLink>? links = null, System.DateTimeOffset startTime = default) { throw null; }
         public System.Diagnostics.Activity? StartActivity(string name, System.Diagnostics.ActivityKind kind, string parentId, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>>? tags = null, System.Collections.Generic.IEnumerable<System.Diagnostics.ActivityLink>? links = null, System.DateTimeOffset startTime = default) { throw null; }
@@ -189,12 +188,18 @@ namespace System.Diagnostics
         public override bool Equals(object? obj) { throw null; }
         public override int GetHashCode() { throw null; }
     }
-    public readonly struct ActivityLink
+    public readonly struct ActivityLink : IEquatable<ActivityLink>
     {
         public ActivityLink(System.Diagnostics.ActivityContext context) { throw null; }
         public ActivityLink(System.Diagnostics.ActivityContext context, System.Collections.Generic.IReadOnlyDictionary<string, object>? attributes) { throw null; }
         public System.Diagnostics.ActivityContext Context { get; }
         public System.Collections.Generic.IReadOnlyDictionary<string, object>? Attributes { get; }
+
+        public override bool Equals(object? obj) { throw null; }
+        public bool Equals(System.Diagnostics.ActivityLink link) { throw null; }
+        public static bool operator ==(System.Diagnostics.ActivityLink link1, System.Diagnostics.ActivityLink link2) { throw null; }
+        public static bool operator !=(System.Diagnostics.ActivityLink link1, System.Diagnostics.ActivityLink link2) { throw null; }
+        public override int GetHashCode()  { throw null; }
     }
 }
 

@@ -22,7 +22,7 @@ namespace System.Diagnostics
         public ActivityContext(ActivityTraceId traceId, ActivitySpanId spanId, ActivityTraceFlags traceFlags, string? traceState = null)
         {
             // We don't allow creating context with invalid span or trace Ids.
-            if (spanId.ToHexString() == "0000000000000000" || traceId.ToHexString() == "00000000000000000000000000000000")
+            if (traceId == default || spanId == default)
             {
                 throw new ArgumentException(SR.SpanIdOrTraceIdInvalid, traceId == default ? nameof(traceId) : nameof(spanId));
             }
@@ -53,27 +53,11 @@ namespace System.Diagnostics
         /// </summary>
         public string? TraceState { get; }
 
-        public static bool operator ==(ActivityContext context1, ActivityContext context2)
-        {
-            return context1.SpanId == context2.SpanId &&
-                   context1.TraceId == context2.TraceId &&
-                   context1.TraceFlags == context2.TraceFlags &&
-                   context1.TraceState == context2.TraceState;
-        }
+        public bool Equals(ActivityContext context) =>  SpanId.Equals(context.SpanId) && TraceId.Equals(context.TraceId) && TraceFlags == context.TraceFlags && TraceState == context.TraceState;
 
+        public override bool Equals(object? obj) => (obj is ActivityContext context) ? Equals(context) : false;
+        public static bool operator ==(ActivityContext context1, ActivityContext context2) => context1.Equals(context2);
         public static bool operator !=(ActivityContext context1, ActivityContext context2) => !(context1 == context2);
-
-        public bool Equals(ActivityContext context)
-        {
-            return this == context;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            if (obj is ActivityContext context)
-                return this == context;
-            return false;
-        }
 
         public override int GetHashCode()
         {

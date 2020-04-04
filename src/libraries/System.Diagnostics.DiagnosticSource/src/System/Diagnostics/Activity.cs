@@ -37,7 +37,7 @@ namespace System.Diagnostics
         private static readonly IEnumerable<ActivityLink> s_emptyLinks = new ActivityLink[0];
         private static readonly IEnumerable<ActivityEvent> s_emptyEvents = new ActivityEvent[0];
 #pragma warning restore CA1825
-        private static ActivitySource s_defaultSource = new ActivitySource(string.Empty, new Version());
+        private static ActivitySource s_defaultSource = new ActivitySource(string.Empty);
 
         private const byte ActivityTraceFlagsIsSet = 0b_1_0000000; // Internal flag to indicate if flags have been set
         private const int RequestIdMaxLength = 1024;
@@ -95,10 +95,8 @@ namespace System.Diagnostics
         public string OperationName { get; } = null!;
 
         /// <summary>
-        /// An operation name is a COARSEST name that is useful grouping/filtering.
-        /// The name is typically a compile-time constant.   Names of Rest APIs are
-        /// reasonable, but arguments (e.g. specific accounts etc), should not be in
-        /// the name but rather in the tags.
+        /// DisplayName is name mainly intended to be used in the UI and not necessary has to be
+        /// same as OperationName.
         /// </summary>
         public string DisplayName
         {
@@ -108,8 +106,8 @@ namespace System.Diagnostics
 
         /// <summary>
         /// Get the ActivitySource object associated with this Activity.
-        /// All Activities created from constructors will have a singelton source.
-        /// Otherwise, the source will be holding the object created the Activity through ActivitySource.StartActivity.
+        /// All Activities created from public constructors will have a singleton source where the source name is empty string.
+        /// Otherwise, the source will be holding the object that created the Activity through ActivitySource.StartActivity.
         /// </summary>
         public ActivitySource Source { get; private set; }
 
@@ -257,7 +255,7 @@ namespace System.Diagnostics
                 {
                     do
                     {
-                        yield return tags!.keyValue;
+                        yield return tags!.Value;
                         tags = tags.Next;
                     }
                     while (tags != null);
@@ -266,8 +264,8 @@ namespace System.Diagnostics
         }
 
         /// <summary>
-        /// Events is the list of all <see cref="ActivityEvent" /> objects which attached to this Activity object.
-        /// If there is no any <see cref="ActivityEvent" /> object attached to the Activity object, Events will return empty list.
+        /// Events is the list of all <see cref="ActivityEvent" /> objects attached to this Activity object.
+        /// If there is not any <see cref="ActivityEvent" /> object attached to the Activity object, Events will return empty list.
         /// </summary>
         public IEnumerable<ActivityEvent> Events
         {
@@ -280,7 +278,7 @@ namespace System.Diagnostics
                 {
                     do
                     {
-                        yield return events!.keyValue;
+                        yield return events!.Value;
                         events = events.Next;
                     }
                     while (events != null);
@@ -289,7 +287,7 @@ namespace System.Diagnostics
         }
 
         /// <summary>
-        /// Links is the list of all <see cref="ActivityLink" /> objects which contain the <see cref="ActivityContext" /> attached to this Activity object.
+        /// Links is the list of all <see cref="ActivityLink" /> objects attached to this Activity object.
         /// If there is no any <see cref="ActivityLink" /> object attached to the Activity object, Links will return empty list.
         /// </summary>
         public IEnumerable<ActivityLink> Links
@@ -303,7 +301,7 @@ namespace System.Diagnostics
                 {
                     do
                     {
-                        yield return links!.keyValue;
+                        yield return links!.Value;
                         links = links.Next;
                     }
                     while (links != null);
@@ -340,7 +338,7 @@ namespace System.Diagnostics
                     {
                         for (LinkedListNode<KeyValuePair<string, string?>>? baggage = activity._baggage; baggage != null; baggage = baggage.Next)
                         {
-                            yield return baggage.keyValue;
+                            yield return baggage.Value;
                         }
 
                         activity = activity.Parent;
@@ -392,11 +390,6 @@ namespace System.Diagnostics
         /// <returns>'this' for convenient chaining</returns>
         public Activity AddTag(string key, string? value)
         {
-            if (!IsAllDataRequested)
-            {
-                return this;
-            }
-
             LinkedListNode<KeyValuePair<string, string?>>? currentTags = _tags;
             LinkedListNode<KeyValuePair<string, string?>> newTags = new LinkedListNode<KeyValuePair<string, string?>>(new KeyValuePair<string, string?>(key, value));
             do
@@ -415,7 +408,7 @@ namespace System.Diagnostics
         /// <returns>'this' for convenient chaining</returns>
         public Activity AddEvent(ActivityEvent e)
         {
-            if (!IsAllDataRequested || e == null)
+            if (e == null)
             {
                 return this;
             }
@@ -432,29 +425,6 @@ namespace System.Diagnostics
         }
 
         /// <summary>
-        /// Add <see cref="ActivityLink" /> object to the <see cref="Links" /> list.
-        /// </summary>
-        /// <param name="link"> object of <see cref="ActivityLink"/> to add to the attached links list.</param>
-        /// <returns>'this' for convenient chaining</returns>
-        public Activity AddLink(ActivityLink link)
-        {
-            if (!IsAllDataRequested)
-            {
-                return this;
-            }
-
-            LinkedListNode<ActivityLink>? currentLinks = _links;
-            LinkedListNode<ActivityLink> newLinks = new LinkedListNode<ActivityLink>(link);
-            do
-            {
-                newLinks.Next = currentLinks;
-                currentLinks = Interlocked.CompareExchange(ref _links, newLinks, currentLinks);
-            } while (!ReferenceEquals(newLinks.Next, currentLinks));
-
-            return this;
-        }
-
-        /// <summary>
         /// Update the Activity to have baggage with an additional 'key' and value 'value'.
         /// This shows up in the <see cref="Baggage"/> enumeration as well as the <see cref="GetBaggageItem(string)"/>
         /// method.
@@ -465,11 +435,6 @@ namespace System.Diagnostics
         /// <returns>'this' for convenient chaining</returns>
         public Activity AddBaggage(string key, string? value)
         {
-            if (!IsAllDataRequested)
-            {
-                return this;
-            }
-
             LinkedListNode<KeyValuePair<string, string?>>? currentBaggage = _baggage;
             LinkedListNode<KeyValuePair<string, string?>> newBaggage = new LinkedListNode<KeyValuePair<string, string?>>(new KeyValuePair<string, string?>(key, value));
 
@@ -513,7 +478,7 @@ namespace System.Diagnostics
         }
 
         /// <summary>
-        /// Set the parent ID using the W3C convention using a TraceId and a SpanId.   This
+        /// Set the parent ID using the W3C convention using a TraceId and a SpanId. This
         /// constructor has the advantage that no string manipulation is needed to set the ID.
         /// </summary>
         public Activity SetParentId(ActivityTraceId traceId, ActivitySpanId spanId, ActivityTraceFlags activityTraceFlags = ActivityTraceFlags.None)
@@ -579,18 +544,7 @@ namespace System.Diagnostics
         /// Get the context of the activity. Context becomes valid only if the activity has been started.
         /// otherwise will default context.
         /// </summary>
-        public ActivityContext Context
-        {
-            get
-            {
-                if (_id == null && _spanId == null)
-                {
-                    return default;
-                }
-
-                return new ActivityContext(new ActivityTraceId(_traceId), new ActivitySpanId(_spanId ?? _id), ActivityTraceFlags, _traceState);
-            }
-        }
+        public ActivityContext Context => new ActivityContext(TraceId, SpanId, ActivityTraceFlags, TraceStateString);
 
         /// <summary>
         /// Starts activity
@@ -902,19 +856,19 @@ namespace System.Diagnostics
         /// <param name="propertyValue">The object to attach and map to the property name.</param>
         public void SetCustomProperty(string propertyName, object? propertyValue)
         {
-            if (!IsAllDataRequested)
-            {
-                return;
-            }
-
-            // We don't check null name here as the dictionary is performing this check anyway.
-
             if (_customProperties == null)
             {
                 Interlocked.CompareExchange(ref _customProperties, new ConcurrentDictionary<string, object>(), null);
             }
 
-            _customProperties[propertyName] = propertyValue!;
+            if (propertyValue == null)
+            {
+                _customProperties.TryRemove(propertyName, out object _);
+            }
+            else
+            {
+                _customProperties[propertyName] = propertyValue!;
+            }
         }
 
         /// <summary>
@@ -1239,13 +1193,13 @@ namespace System.Diagnostics
         /// </summary>
         private partial class LinkedListNode<T>
         {
-            public LinkedListNode(T value) => keyValue = value;
+            public LinkedListNode(T value) => Value = value;
             public LinkedListNode(T value, LinkedListNode<T>? next)
             {
-                keyValue = value;
+                Value = value;
                 Next = next;
             }
-            public T keyValue;
+            public T Value;
             public LinkedListNode<T>? Next;
         }
 

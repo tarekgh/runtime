@@ -1380,31 +1380,6 @@ namespace System.Diagnostics.Tests
         }
 
         [Fact]
-        public void TestLinks()
-        {
-            Activity activity = new Activity("Links");
-            IEnumerable<ActivityLink> links = activity.Links;
-            Assert.Equal(0, links.Count());
-
-            activity.AddLink(new ActivityLink(new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.None)));
-            activity.AddLink(new ActivityLink(new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded)));
-
-            links = activity.Links;
-            Assert.Equal(2, links.Count());
-
-            activity.AddLink(new ActivityLink(new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded, "I=Cool")));
-            links = activity.Links;
-            Assert.Equal(3, links.Count());
-
-            Assert.Equal(ActivityTraceFlags.None, links.ElementAt(2).Context.TraceFlags);
-            Assert.Null(links.ElementAt(2).Context.TraceState);
-            Assert.Equal(ActivityTraceFlags.Recorded, links.ElementAt(1).Context.TraceFlags);
-            Assert.Null(links.ElementAt(1).Context.TraceState);
-            Assert.Equal(ActivityTraceFlags.Recorded, links.ElementAt(0).Context.TraceFlags);
-            Assert.NotNull(links.ElementAt(0).Context.TraceState);
-        }
-
-        [Fact]
         public void TestKind()
         {
             Activity activity = new Activity("Kind");
@@ -1452,10 +1427,6 @@ namespace System.Diagnostics.Tests
             Activity a1 = new Activity("a1");
             Assert.True(a1.IsAllDataRequested);
             Assert.True(object.ReferenceEquals(a1, a1.AddTag("k1", "v1")));
-            Assert.Equal(1, a1.Tags.Count());
-
-            a1.IsAllDataRequested = false;
-            Assert.True(object.ReferenceEquals(a1, a1.AddTag("k2", "v2")));
             Assert.Equal(1, a1.Tags.Count());
         }
 

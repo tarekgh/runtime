@@ -20,7 +20,7 @@ namespace System.Diagnostics
         /// </summary>
         /// <param name="name">The name of the ActivitySource object</param>
         /// <param name="version">The version of the component publishing the tracing info.</param>
-        public ActivitySource(string name, Version version)
+        public ActivitySource(string name, string version = "")
         {
             if (name == null)
             {
@@ -51,7 +51,7 @@ namespace System.Diagnostics
         /// <summary>
         /// Returns the ActivitySource version.
         /// </summary>
-        public Version Version { get; }
+        public string Version { get; }
 
         /// <summary>
         /// Check if there is any listeners for this ActivitySource.
@@ -59,7 +59,7 @@ namespace System.Diagnostics
         /// and avoid creating the objects needed to create Activity (e.g. ActivityContext)
         /// Example of that is http scenario which can avoid reading the context data from the wire.
         /// </summary>
-        public bool HasListeners => _listeners != null && _listeners.Count > 0;
+        public bool HasListeners() => _listeners != null && _listeners.Count > 0;
 
         /// <summary>
         /// Creates a new <see cref="Activity"/> object if there is any listener to the Activity, returns null otherwise.
@@ -138,7 +138,7 @@ namespace System.Diagnostics
 
             if (dateRequest != ActivityDataRequest.None)
             {
-                activity = Activity.CreateAndStart(this, name, kind, parentId, default, tags, links, startTime, dateRequest);
+                activity = Activity.CreateAndStart(this, name, kind, parentId, context, tags, links, startTime, dateRequest);
                 listeners.EnumWithAction(listener => listener.OnActivityStarted(activity));
             }
 
@@ -195,11 +195,12 @@ namespace System.Diagnostics
 
         internal static void DetachListener(ActivityListener listener)
         {
+            s_allListeners.Remove(listener);
+
             s_activeSources.EnumWithAction(source => {
                 var listeners = source._listeners;
                 listeners?.Remove(listener);
             });
-            s_allListeners.Remove(listener);
         }
 
         internal void NotifyActivityStart(Activity activity)

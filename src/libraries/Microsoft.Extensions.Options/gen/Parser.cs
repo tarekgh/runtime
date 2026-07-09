@@ -95,21 +95,27 @@ namespace Microsoft.Extensions.Options.Generators
                                 _ = _visitedModelTypes.Add(modelType.WithNullableAnnotation(NullableAnnotation.None));
                             }
 
-                            if (AlreadyImplementsValidateMethod(validatorType, modelType))
+                            // A validator can opt into synchronous validation (IValidateOptions<T>), asynchronous
+                            // validation (IAsyncValidateOptions<T>), or both, on a per-model basis. We emit Validate
+                            // only for models reached through the synchronous interface and ValidateAsync only for
+                            // models reached through the asynchronous interface. If the user already hand-wrote a
+                            // matching method, we skip generating that one to avoid emitting a duplicate member.
+                            bool generateSync = CanValidate(validatorType, modelType);
+                            bool generateAsync = ValidatorImplementsAsyncInterfaceFor(validatorType, modelType)
+                                && !AlreadyImplementsValidateAsyncMethod(validatorType, modelType);
+
+                            if (generateSync && AlreadyImplementsValidateMethod(validatorType, modelType))
                             {
                                 // this type already implements a validation function, we can't auto-generate a new one
                                 Diag(DiagDescriptors.AlreadyImplementsValidateMethod, syntax.GetLocation(), validatorType.Name);
                                 continue;
                             }
 
-                            // Decide, per model, whether we additionally emit a ValidateAsync method. We do so when the
-                            // validator type explicitly implements IAsyncValidateOptions<T> for this specific model (and the
-                            // async symbols are available). A multi-model validator therefore only gets async validation for
-                            // the models it opted into. If the user already hand-wrote a matching ValidateAsync, we skip
-                            // generation to avoid emitting a duplicate member. The async requirement is propagated to any
-                            // synthesized child validators reached from this model.
-                            bool generateAsync = ValidatorImplementsAsyncInterfaceFor(validatorType, modelType)
-                                && !AlreadyImplementsValidateAsyncMethod(validatorType, modelType);
+                            if (!generateSync && !generateAsync)
+                            {
+                                // nothing to generate: an async-only validator that already hand-wrote ValidateAsync
+                                continue;
+                            }
 
                             Location? modelTypeLocation = modelType.GetLocation();
                             Location lowerLocationInCompilation = modelTypeLocation is not null && modelTypeLocation.SourceTree is not null && _compilation.ContainsSyntaxTree(modelTypeLocation.SourceTree)
@@ -131,6 +137,7 @@ namespace Microsoft.Extensions.Options.Generators
                                 modelType.Name,
                                 selfValidate,
                                 selfValidateAsync,
+                                generateSync,
                                 generateAsync,
                                 membersToValidate));
                         }
@@ -759,6 +766,7 @@ namespace Microsoft.Extensions.Options.Generators
                 mt.Name,
                 selfValidate,
                 selfValidateAsync,
+                true,
                 isAsync,
                 membersToValidate);
 
@@ -839,11 +847,20 @@ namespace Microsoft.Extensions.Options.Generators
         private List<ITypeSymbol> GetModelTypes(ITypeSymbol validatorType)
         {
             var result = new List<ITypeSymbol>();
+            var seen = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
             foreach (var implementingInterface in validatorType.AllInterfaces)
             {
-                if (SymbolEqualityComparer.Default.Equals(implementingInterface.OriginalDefinition, _symbolHolder.ValidateOptionsSymbol))
+                bool isSync = SymbolEqualityComparer.Default.Equals(implementingInterface.OriginalDefinition, _symbolHolder.ValidateOptionsSymbol);
+                bool isAsync = _symbolHolder.AsyncValidateOptionsSymbol is not null
+                    && SymbolEqualityComparer.Default.Equals(implementingInterface.OriginalDefinition, _symbolHolder.AsyncValidateOptionsSymbol);
+
+                if (isSync || isAsync)
                 {
-                    result.Add(implementingInterface.TypeArguments.First());
+                    var model = implementingInterface.TypeArguments.First();
+                    if (seen.Add(model.WithNullableAnnotation(NullableAnnotation.None)))
+                    {
+                        result.Add(model);
+                    }
                 }
             }
 

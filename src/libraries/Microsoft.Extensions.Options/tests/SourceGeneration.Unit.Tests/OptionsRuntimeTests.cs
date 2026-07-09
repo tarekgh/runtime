@@ -546,6 +546,51 @@ namespace Microsoft.Gen.OptionsValidation.Unit.Test
             Assert.True(result.Failed);
             Assert.Contains("Manual ValidateAsync invoked.", result.Failures);
         }
+
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotBrowser))]
+        public async Task TestAsyncOnlyValidatorGeneratesValidateAsyncOnly()
+        {
+            // The validator implements only IAsyncValidateOptions<T>. The generator must discover the model through
+            // the asynchronous interface, emit ValidateAsync, and must not emit a synchronous Validate (the type does
+            // not implement IValidateOptions<T>, so emitting Validate would be a dead public method).
+            Assert.True(typeof(IAsyncValidateOptions<AsyncOnlyOptions>).IsAssignableFrom(typeof(AsyncOnlyOptionsValidator)));
+            Assert.False(typeof(IValidateOptions<AsyncOnlyOptions>).IsAssignableFrom(typeof(AsyncOnlyOptionsValidator)));
+            Assert.Null(typeof(AsyncOnlyOptionsValidator).GetMethod("Validate"));
+
+            AsyncOnlyOptions valid = new()
+            {
+                Name = "Valid",
+                Age = 30,
+                Nested = new() { Level = 5, Id = "1", Children = new() { new AsyncChildOptions { Name = "C1" } } }
+            };
+
+            ValidateOptionsResult result = await new AsyncOnlyOptionsValidator().ValidateAsync("AsyncOnly", valid, default);
+            Assert.True(result.Succeeded);
+        }
+
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotBrowser))]
+        public async Task TestAsyncOnlyValidatorReportsAllFailures()
+        {
+            AsyncOnlyOptions invalid = new()
+            {
+                Name = "Invalid",  // trips the root async-only self-validation
+                Age = 0,           // out of [Range(1, 100)]
+                Nested = new() { Level = 50, Id = "trigger-async", Children = new() { new AsyncChildOptions { Name = null } } }
+            };
+
+            ValidateOptionsResult result = await new AsyncOnlyOptionsValidator().ValidateAsync("AsyncOnly", invalid, default);
+            Assert.True(result.Failed);
+
+            // A member attribute failure, a nested member attribute failure, an enumerated-item failure, the nested
+            // async self-validation, and the root async-only self-validation are all surfaced. This proves nested async
+            // validation runs from an async-only root and that the async pipeline is fully wired without a synchronous
+            // Validate method.
+            Assert.Contains("Age: The field AsyncOnly.Age must be between 1 and 100.", result.Failures);
+            Assert.Contains("Level: The field AsyncOnly.Nested.Level must be between 0 and 10.", result.Failures);
+            Assert.Contains("Name: The AsyncOnly.Nested.Children[0].Name field is required.", result.Failures);
+            Assert.Contains("Nested async self-validation failed.", result.Failures);
+            Assert.Contains("Async-only self-validation failed.", result.Failures);
+        }
 #endif // NET
     }
 
@@ -853,6 +898,41 @@ namespace Microsoft.Gen.OptionsValidation.Unit.Test
 
     [OptionsValidator]
     public partial class SyncRootReusingNestedOptionsValidator : IValidateOptions<SyncRootReusingNestedOptions>
+    {
+    }
+
+    public class AsyncOnlyOptions : IAsyncValidatableObject
+    {
+        [Required]
+        public string? Name { get; set; }
+
+        [Range(1, 100)]
+        public int Age { get; set; }
+
+        [ValidateObjectMembers]
+        public AsyncNestedOptions? Nested { get; set; }
+
+        public async IAsyncEnumerable<ValidationResult> ValidateAsync(
+            ValidationContext validationContext,
+            [global::System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            if (Name == "Invalid")
+            {
+                yield return new ValidationResult("Async-only self-validation failed.");
+            }
+        }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            yield break;
+        }
+    }
+
+    // Option A: the validator opts into asynchronous validation only. Model discovery goes through
+    // IAsyncValidateOptions<T>, the generator emits ValidateAsync, and it must not emit a synchronous Validate.
+    [OptionsValidator]
+    public partial class AsyncOnlyOptionsValidator : IAsyncValidateOptions<AsyncOnlyOptions>
     {
     }
 

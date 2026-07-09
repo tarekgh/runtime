@@ -129,13 +129,23 @@ namespace Microsoft.Extensions.Options.Generators
             {
                 var modelToValidate = vt.ModelsToValidate[i];
 
-                GenModelValidationMethod(modelToValidate, vt.IsSynthetic, ref staticValidationAttributesDict, ref staticValidatorsDict);
+                // Emit the synchronous Validate method only for models reached through IValidateOptions<T>.
+                // Synthesized validators always emit it, since the asynchronous fallback path invokes Validate
+                // for nested validators that don't themselves emit ValidateAsync.
+                if (modelToValidate.GenerateValidateMethod)
+                {
+                    GenModelValidationMethod(modelToValidate, vt.IsSynthetic, ref staticValidationAttributesDict, ref staticValidatorsDict);
+                }
 
                 // Only emit the async validation method when the validator type explicitly implements
                 // IAsyncValidateOptions<T> for this model and the required async validation symbols are available (.NET 11+).
                 if (modelToValidate.GenerateAsyncValidateMethod && _symbolHolder.AsyncValidateOptionsSymbol is not null && _symbolHolder.IAsyncValidatableObjectSymbol is not null)
                 {
-                    OutLn();
+                    if (modelToValidate.GenerateValidateMethod)
+                    {
+                        OutLn();
+                    }
+
                     GenAsyncModelValidationMethod(modelToValidate, vt.IsSynthetic, ref staticValidationAttributesDict, ref staticValidatorsDict);
                 }
             }

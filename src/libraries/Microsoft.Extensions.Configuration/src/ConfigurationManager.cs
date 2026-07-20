@@ -37,6 +37,15 @@ namespace Microsoft.Extensions.Configuration
         private readonly List<IDisposable> _changeTokenRegistrations = new();
         private ConfigurationReloadToken _changeToken = new();
 
+        // A merged view of the providers that applies the selected array and object merge behaviors. It is derived
+        // from the current provider list and rebuilt whenever the providers change (identity of the list changes) or
+        // the configuration is reloaded. When no provider reports structure, this is the original provider list, so
+        // there is no behavior change for providers that do not implement IConfigurationMergeMetadata.
+        private readonly object _mergedProvidersLock = new object();
+        private List<IConfigurationProvider>? _mergedProvidersSource;
+        private List<IConfigurationProvider>? _mergedProviders;
+        private volatile bool _mergedProvidersDirty = true;
+
         /// <summary>
         /// Creates an empty mutable configuration object that is both an <see cref="IConfigurationBuilder"/> and an <see cref="IConfigurationRoot"/>.
         /// </summary>
@@ -55,12 +64,13 @@ namespace Microsoft.Extensions.Configuration
             get
             {
                 using ReferenceCountedProviders reference = _providerManager.GetReference();
-                return ConfigurationRoot.GetConfiguration(reference.Providers, key);
+                return ConfigurationRoot.GetConfiguration(GetMergedProviders(reference.Providers), key);
             }
             set
             {
                 using ReferenceCountedProviders reference = _providerManager.GetReference();
                 ConfigurationRoot.SetConfiguration(reference.Providers, key, value);
+                _mergedProvidersDirty = true;
             }
         }
 
@@ -114,8 +124,42 @@ namespace Microsoft.Extensions.Configuration
 
         internal ReferenceCountedProviders GetProvidersReference() => _providerManager.GetReference();
 
+        // Returns the providers that reads should be answered from: a single merged provider when any source reports
+        // structure via IConfigurationMergeMetadata, or the original providers otherwise. The result is cached and
+        // rebuilt when the underlying provider list changes or the configuration is reloaded.
+        internal List<IConfigurationProvider> GetMergedProviders(List<IConfigurationProvider> providers)
+        {
+            if (!_mergedProvidersDirty &&
+                ReferenceEquals(_mergedProvidersSource, providers) &&
+                _mergedProviders is not null)
+            {
+                return _mergedProviders;
+            }
+
+            lock (_mergedProvidersLock)
+            {
+                if (!_mergedProvidersDirty &&
+                    ReferenceEquals(_mergedProvidersSource, providers) &&
+                    _mergedProviders is not null)
+                {
+                    return _mergedProviders;
+                }
+
+                IConfigurationProvider? merged = ConfigurationMergeEngine.TryBuildMergedProvider(
+                    providers,
+                    ConfigurationMergeBuilderExtensions.GetArrayMergeBehavior(this),
+                    ConfigurationMergeBuilderExtensions.GetObjectMergeBehavior(this));
+
+                _mergedProviders = merged is null ? providers : new List<IConfigurationProvider> { merged };
+                _mergedProvidersSource = providers;
+                _mergedProvidersDirty = false;
+                return _mergedProviders;
+            }
+        }
+
         private void RaiseChanged()
         {
+            _mergedProvidersDirty = true;
             var previousToken = Interlocked.Exchange(ref _changeToken, new ConfigurationReloadToken());
             previousToken.OnReload();
         }

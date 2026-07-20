@@ -79,7 +79,7 @@ namespace Microsoft.Extensions.Configuration.Json.Test
         }
 
         [Fact]
-        public void ImplicitArrayItemReplacement()
+        public void ImplicitArrayItemsAreAppendedByDefault()
         {
             var json1 = @"{
                 ""ip"": [
@@ -103,10 +103,41 @@ namespace Microsoft.Extensions.Configuration.Json.Test
             configurationBuilder.Add(jsonConfigSource2);
             var config = configurationBuilder.Build();
 
-            Assert.Equal(3, config.GetSection("ip").GetChildren().Count());
-            Assert.Equal("15.16.17.18", config["ip:0"]);
+            Assert.Equal(4, config.GetSection("ip").GetChildren().Count());
+            Assert.Equal("1.2.3.4", config["ip:0"]);
             Assert.Equal("7.8.9.10", config["ip:1"]);
             Assert.Equal("11.12.13.14", config["ip:2"]);
+            Assert.Equal("15.16.17.18", config["ip:3"]);
+        }
+
+        [Fact]
+        public void ImplicitArrayItemReplacementWithReplaceBehavior()
+        {
+            var json1 = @"{
+                ""ip"": [
+                    ""1.2.3.4"",
+                    ""7.8.9.10"",
+                    ""11.12.13.14""
+                ]
+            }";
+
+            var json2 = @"{
+                ""ip"": [
+                    ""15.16.17.18""
+                ]
+            }";
+
+            var jsonConfigSource1 = new JsonConfigurationSource { FileProvider = TestStreamHelpers.StringToFileProvider(json1) };
+            var jsonConfigSource2 = new JsonConfigurationSource { FileProvider = TestStreamHelpers.StringToFileProvider(json2) };
+
+            var configurationBuilder = new ConfigurationBuilder();
+            configurationBuilder.SetArrayMergeBehavior(ConfigurationMergeBehavior.Replace);
+            configurationBuilder.Add(jsonConfigSource1);
+            configurationBuilder.Add(jsonConfigSource2);
+            var config = configurationBuilder.Build();
+
+            Assert.Equal(1, config.GetSection("ip").GetChildren().Count());
+            Assert.Equal("15.16.17.18", config["ip:0"]);
         }
 
         [Fact]

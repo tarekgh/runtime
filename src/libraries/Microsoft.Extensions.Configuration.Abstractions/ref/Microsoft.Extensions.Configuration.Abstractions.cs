@@ -36,6 +36,23 @@ namespace Microsoft.Extensions.Configuration
         public ConfigurationKeyNameAttribute(string name) { }
         public string Name { get { throw null; } }
     }
+    public enum ConfigurationMergeBehavior
+    {
+        Append = 0,
+        Replace = 1,
+    }
+    public readonly partial struct ConfigurationNodeInfo
+    {
+        private readonly int _dummyPrimitive;
+        public ConfigurationNodeInfo(Microsoft.Extensions.Configuration.ConfigurationNodeKind kind, int elementCount) { throw null; }
+        public int ElementCount { get { throw null; } }
+        public Microsoft.Extensions.Configuration.ConfigurationNodeKind Kind { get { throw null; } }
+    }
+    public enum ConfigurationNodeKind
+    {
+        Positional = 0,
+        Named = 1,
+    }
     public static partial class ConfigurationPath
     {
         public static readonly string KeyDelimiter;
@@ -66,6 +83,10 @@ namespace Microsoft.Extensions.Configuration
     }
     public partial interface IConfigurationManager : Microsoft.Extensions.Configuration.IConfiguration, Microsoft.Extensions.Configuration.IConfigurationBuilder
     {
+    }
+    public partial interface IConfigurationMergeMetadata
+    {
+        bool TryGetNodeInfo(string path, out Microsoft.Extensions.Configuration.ConfigurationNodeInfo info);
     }
     public partial interface IConfigurationProvider
     {

@@ -50,7 +50,7 @@ namespace Microsoft.Extensions.Configuration
                 IConfigurationProvider provider = source.Build(this);
                 providers.Add(provider);
             }
-            return new ConfigurationRoot(providers);
+            return new ConfigurationRoot(providers, this.GetArrayMergeBehavior(), this.GetObjectMergeBehavior());
         }
     }
 }

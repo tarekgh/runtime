@@ -17,6 +17,7 @@
              Link="Common\TestStreamHelpers.cs" />
     <Compile Include="..\Common\ConfigurationBinderTests.cs" Link="Common\ConfigurationBinderTests.cs" />
     <Compile Include="..\Common\ConfigurationBinderTests.Collections.cs" Link="Common\ConfigurationBinderTests.Collections.cs" />
+    <Compile Include="..\Common\ConfigurationBinderTests.MergeBehavior.cs" Link="Common\ConfigurationBinderTests.MergeBehavior.cs" />
     <Compile Include="..\Common\ConfigurationBinderTests.Helpers.cs" Link="Common\ConfigurationBinderTests.Helpers.cs" />
     <Compile Include="..\Common\ConfigurationBinderTests.TestClasses.cs" Link="Common\ConfigurationBinderTests.TestClasses.cs" />
     <Compile Include="..\Common\ConfigurationBinderTests.TestClasses.Collections.cs" Link="Common\ConfigurationBinderTests.TestClasses.Collections.cs" />

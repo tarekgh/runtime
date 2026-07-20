@@ -44,6 +44,11 @@ namespace Microsoft.Extensions.Configuration
         public static Microsoft.Extensions.Configuration.ConfigurationKeyComparer Instance { get { throw null; } }
         public int Compare(string? x, string? y) { throw null; }
     }
+    public static partial class ConfigurationMergeBuilderExtensions
+    {
+        public static Microsoft.Extensions.Configuration.IConfigurationBuilder SetArrayMergeBehavior(this Microsoft.Extensions.Configuration.IConfigurationBuilder builder, Microsoft.Extensions.Configuration.ConfigurationMergeBehavior behavior) { throw null; }
+        public static Microsoft.Extensions.Configuration.IConfigurationBuilder SetObjectMergeBehavior(this Microsoft.Extensions.Configuration.IConfigurationBuilder builder, Microsoft.Extensions.Configuration.ConfigurationMergeBehavior behavior) { throw null; }
+    }
     public sealed partial class ConfigurationManager : Microsoft.Extensions.Configuration.IConfiguration, Microsoft.Extensions.Configuration.IConfigurationBuilder, Microsoft.Extensions.Configuration.IConfigurationManager, Microsoft.Extensions.Configuration.IConfigurationRoot, System.IDisposable
     {
         public ConfigurationManager() { }

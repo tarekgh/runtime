@@ -11,8 +11,10 @@ namespace Microsoft.Extensions.Configuration.Json
     /// <summary>
     /// Provides configuration key-value pairs that are obtained from a JSON file.
     /// </summary>
-    public class JsonConfigurationProvider : FileConfigurationProvider
+    public class JsonConfigurationProvider : FileConfigurationProvider, IConfigurationMergeMetadata
     {
+        private Dictionary<string, ConfigurationNodeInfo>? _nodes;
+
         /// <summary>
         /// Initializes a new instance with the specified source.
         /// </summary>
@@ -27,12 +29,26 @@ namespace Microsoft.Extensions.Configuration.Json
         {
             try
             {
-                Data = JsonConfigurationFileParser.Parse(stream);
+                JsonConfigurationParseResult result = JsonConfigurationFileParser.Parse(stream);
+                Data = result.Data;
+                _nodes = result.Nodes;
             }
             catch (JsonException e)
             {
                 throw new FormatException(SR.Error_JSONParseError, e);
             }
+        }
+
+        bool IConfigurationMergeMetadata.TryGetNodeInfo(string path, out ConfigurationNodeInfo info)
+        {
+            Dictionary<string, ConfigurationNodeInfo>? nodes = _nodes;
+            if (nodes is not null && nodes.TryGetValue(path, out info))
+            {
+                return true;
+            }
+
+            info = default;
+            return false;
         }
     }
 }

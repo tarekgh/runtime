@@ -18,20 +18,22 @@ namespace Microsoft.Extensions.Configuration
 }
 namespace Microsoft.Extensions.Configuration.Json
 {
-    public partial class JsonConfigurationProvider : Microsoft.Extensions.Configuration.FileConfigurationProvider
+    public partial class JsonConfigurationProvider : Microsoft.Extensions.Configuration.FileConfigurationProvider, Microsoft.Extensions.Configuration.IConfigurationMergeMetadata
     {
         public JsonConfigurationProvider(Microsoft.Extensions.Configuration.Json.JsonConfigurationSource source) : base (default(Microsoft.Extensions.Configuration.FileConfigurationSource)) { }
         public override void Load(System.IO.Stream stream) { }
+        bool Microsoft.Extensions.Configuration.IConfigurationMergeMetadata.TryGetNodeInfo(string path, out Microsoft.Extensions.Configuration.ConfigurationNodeInfo info) { throw null; }
     }
     public partial class JsonConfigurationSource : Microsoft.Extensions.Configuration.FileConfigurationSource
     {
         public JsonConfigurationSource() { }
         public override Microsoft.Extensions.Configuration.IConfigurationProvider Build(Microsoft.Extensions.Configuration.IConfigurationBuilder builder) { throw null; }
     }
-    public partial class JsonStreamConfigurationProvider : Microsoft.Extensions.Configuration.StreamConfigurationProvider
+    public partial class JsonStreamConfigurationProvider : Microsoft.Extensions.Configuration.StreamConfigurationProvider, Microsoft.Extensions.Configuration.IConfigurationMergeMetadata
     {
         public JsonStreamConfigurationProvider(Microsoft.Extensions.Configuration.Json.JsonStreamConfigurationSource source) : base (default(Microsoft.Extensions.Configuration.StreamConfigurationSource)) { }
         public override void Load(System.IO.Stream stream) { }
+        bool Microsoft.Extensions.Configuration.IConfigurationMergeMetadata.TryGetNodeInfo(string path, out Microsoft.Extensions.Configuration.ConfigurationNodeInfo info) { throw null; }
     }
     public partial class JsonStreamConfigurationSource : Microsoft.Extensions.Configuration.StreamConfigurationSource
     {

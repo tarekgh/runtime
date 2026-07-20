@@ -14,12 +14,13 @@ namespace Microsoft.Extensions.Configuration.Json
         private JsonConfigurationFileParser() { }
 
         private readonly Dictionary<string, string?> _data = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, ConfigurationNodeInfo> _nodes = new Dictionary<string, ConfigurationNodeInfo>(StringComparer.OrdinalIgnoreCase);
         private readonly Stack<string> _paths = new Stack<string>();
 
-        public static IDictionary<string, string?> Parse(Stream input)
+        public static JsonConfigurationParseResult Parse(Stream input)
             => new JsonConfigurationFileParser().ParseStream(input);
 
-        private Dictionary<string, string?> ParseStream(Stream input)
+        private JsonConfigurationParseResult ParseStream(Stream input)
         {
             var jsonDocumentOptions = new JsonDocumentOptions
             {
@@ -37,19 +38,26 @@ namespace Microsoft.Extensions.Configuration.Json
                 VisitObjectElement(doc.RootElement);
             }
 
-            return _data;
+            return new JsonConfigurationParseResult(_data, _nodes);
         }
 
         private void VisitObjectElement(JsonElement element)
         {
             var isEmpty = true;
+            int count = 0;
 
             foreach (JsonProperty property in element.EnumerateObject())
             {
                 isEmpty = false;
+                count++;
                 EnterContext(property.Name);
                 VisitValue(property.Value);
                 ExitContext();
+            }
+
+            if (_paths.Count > 0)
+            {
+                _nodes[_paths.Peek()] = new ConfigurationNodeInfo(ConfigurationNodeKind.Named, count);
             }
 
             SetNullIfElementIsEmpty(isEmpty);
@@ -65,6 +73,11 @@ namespace Microsoft.Extensions.Configuration.Json
                 VisitValue(arrayElement);
                 ExitContext();
                 index++;
+            }
+
+            if (_paths.Count > 0)
+            {
+                _nodes[_paths.Peek()] = new ConfigurationNodeInfo(ConfigurationNodeKind.Positional, index);
             }
 
             SetEmptyIfElementIsEmpty(isEmpty: index == 0);
@@ -124,5 +137,20 @@ namespace Microsoft.Extensions.Configuration.Json
                 context);
 
         private void ExitContext() => _paths.Pop();
+    }
+
+    internal sealed class JsonConfigurationParseResult
+    {
+        public JsonConfigurationParseResult(
+            IDictionary<string, string?> data,
+            Dictionary<string, ConfigurationNodeInfo> nodes)
+        {
+            Data = data;
+            Nodes = nodes;
+        }
+
+        public IDictionary<string, string?> Data { get; }
+
+        public Dictionary<string, ConfigurationNodeInfo> Nodes { get; }
     }
 }

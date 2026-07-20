@@ -18,6 +18,11 @@ namespace Microsoft.Extensions.Configuration
     {
         private readonly IList<IConfigurationProvider> _providers;
         private readonly List<IDisposable> _changeTokenRegistrations;
+        private readonly ConfigurationMergeBehavior _arrayMergeBehavior;
+        private readonly ConfigurationMergeBehavior _objectMergeBehavior;
+        private readonly object _mergeViewLock = new object();
+        private IList<IConfigurationProvider> _readProviders;
+        private volatile bool _mergeViewDirty = true;
         private ConfigurationReloadToken _changeToken = new ConfigurationReloadToken();
 
         /// <summary>
@@ -25,15 +30,53 @@ namespace Microsoft.Extensions.Configuration
         /// </summary>
         /// <param name="providers">The <see cref="IConfigurationProvider"/>s for this configuration.</param>
         public ConfigurationRoot(IList<IConfigurationProvider> providers)
+            : this(providers, ConfigurationMergeBehavior.Append, ConfigurationMergeBehavior.Append)
+        {
+        }
+
+        internal ConfigurationRoot(
+            IList<IConfigurationProvider> providers,
+            ConfigurationMergeBehavior arrayMergeBehavior,
+            ConfigurationMergeBehavior objectMergeBehavior)
         {
             ArgumentNullException.ThrowIfNull(providers);
 
             _providers = providers;
+            _arrayMergeBehavior = arrayMergeBehavior;
+            _objectMergeBehavior = objectMergeBehavior;
+            _readProviders = providers;
             _changeTokenRegistrations = new List<IDisposable>(providers.Count);
             foreach (IConfigurationProvider p in providers)
             {
                 p.Load();
                 _changeTokenRegistrations.Add(ChangeToken.OnChange(p.GetReloadToken, RaiseChanged));
+            }
+        }
+
+        // The providers used to answer reads. When a provider reports structure via
+        // IConfigurationMergeMetadata, this is a single merged provider that applies the selected array and
+        // object merge behaviors; otherwise it is the original provider list. The merged view is built lazily
+        // and rebuilt whenever the underlying providers change, so reads always reflect the current provider state.
+        internal IList<IConfigurationProvider> ReadProviders
+        {
+            get
+            {
+                if (_mergeViewDirty)
+                {
+                    lock (_mergeViewLock)
+                    {
+                        if (_mergeViewDirty)
+                        {
+                            IConfigurationProvider? merged = ConfigurationMergeEngine.TryBuildMergedProvider(
+                                _providers, _arrayMergeBehavior, _objectMergeBehavior);
+
+                            _readProviders = merged is null ? _providers : new IConfigurationProvider[] { merged };
+                            _mergeViewDirty = false;
+                        }
+                    }
+                }
+
+                return _readProviders;
             }
         }
 
@@ -49,8 +92,12 @@ namespace Microsoft.Extensions.Configuration
         /// <returns>The configuration value.</returns>
         public string? this[string key]
         {
-            get => GetConfiguration(_providers, key);
-            set => SetConfiguration(_providers, key, value);
+            get => GetConfiguration(ReadProviders, key);
+            set
+            {
+                SetConfiguration(_providers, key, value);
+                _mergeViewDirty = true;
+            }
         }
 
         /// <summary>
@@ -91,6 +138,7 @@ namespace Microsoft.Extensions.Configuration
 
         private void RaiseChanged()
         {
+            _mergeViewDirty = true;
             ConfigurationReloadToken previousToken = Interlocked.Exchange(ref _changeToken, new ConfigurationReloadToken());
             previousToken.OnReload();
         }

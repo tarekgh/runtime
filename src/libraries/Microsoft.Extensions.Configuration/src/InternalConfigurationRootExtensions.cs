@@ -21,7 +21,20 @@ namespace Microsoft.Extensions.Configuration
         internal static IEnumerable<IConfigurationSection> GetChildrenImplementation(this IConfigurationRoot root, string? path)
         {
             using ReferenceCountedProviders? reference = (root as ConfigurationManager)?.GetProvidersReference();
-            IEnumerable<IConfigurationProvider> providers = reference?.Providers ?? root.Providers;
+
+            IEnumerable<IConfigurationProvider> providers;
+            if (root is ConfigurationRoot configurationRoot)
+            {
+                providers = configurationRoot.ReadProviders;
+            }
+            else if (root is ConfigurationManager manager && reference is not null)
+            {
+                providers = manager.GetMergedProviders(reference.Providers);
+            }
+            else
+            {
+                providers = reference?.Providers ?? root.Providers;
+            }
 
             IEnumerable<IConfigurationSection> children = providers
                 .Aggregate(Enumerable.Empty<string>(),
@@ -42,11 +55,25 @@ namespace Microsoft.Extensions.Configuration
 
         internal static bool TryGetConfiguration(this IConfigurationRoot root, string key, out string? value)
         {
-            // common cases Providers is IList<IConfigurationProvider> in ConfigurationRoot
-            IList<IConfigurationProvider> providers = root.Providers is IList<IConfigurationProvider> list
-                ? list
-                : root.Providers.ToList();
+            if (root is ConfigurationManager manager)
+            {
+                // Reference count the providers so the merged view is built from a consistent snapshot and the
+                // underlying providers are not disposed while being read, matching the ConfigurationManager indexer.
+                using ReferenceCountedProviders reference = manager.GetProvidersReference();
+                return TryGetFromProviders(manager.GetMergedProviders(reference.Providers), key, out value);
+            }
 
+            // common cases Providers is IList<IConfigurationProvider> in ConfigurationRoot
+            IList<IConfigurationProvider> providers = (root as ConfigurationRoot)?.ReadProviders
+                ?? (root.Providers is IList<IConfigurationProvider> list
+                    ? list
+                    : root.Providers.ToList());
+
+            return TryGetFromProviders(providers, key, out value);
+        }
+
+        private static bool TryGetFromProviders(IList<IConfigurationProvider> providers, string key, out string? value)
+        {
             // ensure looping in the reverse order
             for (int i = providers.Count - 1; i >= 0; i--)
             {

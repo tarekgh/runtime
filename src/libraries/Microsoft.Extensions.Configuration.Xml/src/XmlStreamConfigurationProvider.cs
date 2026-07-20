@@ -16,13 +16,15 @@ namespace Microsoft.Extensions.Configuration.Xml
     /// </summary>
     [RequiresDynamicCode(XmlDocumentDecryptor.RequiresDynamicCodeMessage)]
     [RequiresUnreferencedCode(XmlDocumentDecryptor.RequiresUnreferencedCodeMessage)]
-    public class XmlStreamConfigurationProvider : StreamConfigurationProvider
+    public class XmlStreamConfigurationProvider : StreamConfigurationProvider, IConfigurationMergeMetadata
     {
         // work around https://github.com/dotnet/runtime/issues/81864 by splitting this into a separate class.
         internal static class Consts
         {
             internal const string NameAttributeKey = "Name";
         }
+
+        private Dictionary<string, ConfigurationNodeInfo>? _nodes;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="XmlStreamConfigurationProvider"/> class.
@@ -37,6 +39,9 @@ namespace Microsoft.Extensions.Configuration.Xml
         /// <param name="decryptor">The <see cref="XmlDocumentDecryptor"/> to use to decrypt.</param>
         /// <returns>The <see cref="IDictionary{String, String}"/> that was read from the stream.</returns>
         public static IDictionary<string, string?> Read(Stream stream, XmlDocumentDecryptor decryptor)
+            => Read(stream, decryptor, out _);
+
+        internal static IDictionary<string, string?> Read(Stream stream, XmlDocumentDecryptor decryptor, out Dictionary<string, ConfigurationNodeInfo> nodes)
         {
             var readerSettings = new XmlReaderSettings()
             {
@@ -177,7 +182,7 @@ namespace Microsoft.Extensions.Configuration.Xml
                 }
             }
 
-            return ProvideConfiguration(root);
+            return ProvideConfiguration(root, out nodes);
         }
 
         /// <summary>
@@ -186,7 +191,19 @@ namespace Microsoft.Extensions.Configuration.Xml
         /// <param name="stream">The <see cref="Stream"/> to load ini configuration data from.</param>
         public override void Load(Stream stream)
         {
-            Data = Read(stream, XmlDocumentDecryptor.Instance);
+            Data = Read(stream, XmlDocumentDecryptor.Instance, out _nodes);
+        }
+
+        bool IConfigurationMergeMetadata.TryGetNodeInfo(string path, out ConfigurationNodeInfo info)
+        {
+            Dictionary<string, ConfigurationNodeInfo>? nodes = _nodes;
+            if (nodes is not null && nodes.TryGetValue(path, out info))
+            {
+                return true;
+            }
+
+            info = default;
+            return false;
         }
 
         private static string GetLineInfo(XmlReader reader)
@@ -252,9 +269,11 @@ namespace Microsoft.Extensions.Configuration.Xml
             return name;
         }
 
-        private static Dictionary<string, string?> ProvideConfiguration(XmlConfigurationElement? root)
+        private static Dictionary<string, string?> ProvideConfiguration(XmlConfigurationElement? root, out Dictionary<string, ConfigurationNodeInfo> nodes)
         {
             Dictionary<string, string?> configuration = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ConfigurationNodeInfo> capturedNodes = new(StringComparer.OrdinalIgnoreCase);
+            nodes = capturedNodes;
 
             if (root == null)
             {
@@ -269,14 +288,27 @@ namespace Microsoft.Extensions.Configuration.Xml
                 rootPrefix.Push(root.Name);
             }
 
+            RecordNamedIfObject(rootPrefix, root);
             ProcessElementAttributes(rootPrefix, root);
             ProcessElementContent(rootPrefix, root);
             ProcessElementChildren(rootPrefix, root);
 
             return configuration;
 
+            void RecordNamedIfObject(Prefix prefix, XmlConfigurationElement element)
+            {
+                // An element that has children is an object (Named) node. This is only consumed for the
+                // object Replace behavior; the default union needs no metadata. The root has no path.
+                if ((element.SingleChild != null || element.ChildrenBySiblingName != null) && prefix.AsString.Length > 0)
+                {
+                    capturedNodes[prefix.AsString] = new ConfigurationNodeInfo(ConfigurationNodeKind.Named, 0);
+                }
+            }
+
             void ProcessElement(Prefix prefix, XmlConfigurationElement element)
             {
+                RecordNamedIfObject(prefix, element);
+
                 ProcessElementAttributes(prefix, element);
 
                 ProcessElementContent(prefix, element);
@@ -318,7 +350,7 @@ namespace Microsoft.Extensions.Configuration.Xml
                 {
                     var child = element.SingleChild;
 
-                    ProcessElementChild(prefix, child, null);
+                    ProcessElementChild(prefix, child, null, 0);
 
                     return;
                 }
@@ -335,22 +367,23 @@ namespace Microsoft.Extensions.Configuration.Xml
                     {
                         var child = childrenWithSameSiblingName[0];
 
-                        ProcessElementChild(prefix, child, null);
+                        ProcessElementChild(prefix, child, null, 0);
                     }
                     else
                     {
                         // Multiple children with the same sibling name. Add the current index to the prefix
-                        for (int i = 0; i < childrenWithSameSiblingName.Count; i++)
+                        int count = childrenWithSameSiblingName.Count;
+                        for (int i = 0; i < count; i++)
                         {
                             var child = childrenWithSameSiblingName[i];
 
-                            ProcessElementChild(prefix, child, i);
+                            ProcessElementChild(prefix, child, i, count);
                         }
                     }
                 }
             }
 
-            void ProcessElementChild(Prefix prefix, XmlConfigurationElement child, int? index)
+            void ProcessElementChild(Prefix prefix, XmlConfigurationElement child, int? index, int arrayLength)
             {
                 // Add element name to prefix
                 prefix.Push(child.ElementName);
@@ -360,6 +393,13 @@ namespace Microsoft.Extensions.Configuration.Xml
                 if (hasName)
                 {
                     prefix.Push(child.Name!);
+                }
+
+                // Repeated siblings form a positional (array) node at the current prefix, before the index
+                // is appended. Recording it lets cross-source merges offset or replace the array.
+                if (index == 0)
+                {
+                    capturedNodes[prefix.AsString] = new ConfigurationNodeInfo(ConfigurationNodeKind.Positional, arrayLength);
                 }
 
                 // Add index to the prefix

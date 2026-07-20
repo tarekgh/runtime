@@ -32,10 +32,11 @@ namespace Microsoft.Extensions.Configuration.Xml
 {
     [System.Diagnostics.CodeAnalysis.RequiresDynamicCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml which may contain XSLTs in the xml. XSLTs require dynamic code.")]
     [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml. If you use encrypted XML files, your application might not have the algorithm implementations it needs. To avoid this problem, one option you can use is a DynamicDependency attribute to keep the algorithm implementations in your application.")]
-    public partial class XmlConfigurationProvider : Microsoft.Extensions.Configuration.FileConfigurationProvider
+    public partial class XmlConfigurationProvider : Microsoft.Extensions.Configuration.FileConfigurationProvider, Microsoft.Extensions.Configuration.IConfigurationMergeMetadata
     {
         public XmlConfigurationProvider(Microsoft.Extensions.Configuration.Xml.XmlConfigurationSource source) : base (default(Microsoft.Extensions.Configuration.FileConfigurationSource)) { }
         public override void Load(System.IO.Stream stream) { }
+        bool Microsoft.Extensions.Configuration.IConfigurationMergeMetadata.TryGetNodeInfo(string path, out Microsoft.Extensions.Configuration.ConfigurationNodeInfo info) { throw null; }
     }
     [System.Diagnostics.CodeAnalysis.RequiresDynamicCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml which may contain XSLTs in the xml. XSLTs require dynamic code.")]
     [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml. If you use encrypted XML files, your application might not have the algorithm implementations it needs. To avoid this problem, one option you can use is a DynamicDependency attribute to keep the algorithm implementations in your application.")]
@@ -58,11 +59,12 @@ namespace Microsoft.Extensions.Configuration.Xml
     }
     [System.Diagnostics.CodeAnalysis.RequiresDynamicCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml which may contain XSLTs in the xml. XSLTs require dynamic code.")]
     [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml. If you use encrypted XML files, your application might not have the algorithm implementations it needs. To avoid this problem, one option you can use is a DynamicDependency attribute to keep the algorithm implementations in your application.")]
-    public partial class XmlStreamConfigurationProvider : Microsoft.Extensions.Configuration.StreamConfigurationProvider
+    public partial class XmlStreamConfigurationProvider : Microsoft.Extensions.Configuration.StreamConfigurationProvider, Microsoft.Extensions.Configuration.IConfigurationMergeMetadata
     {
         public XmlStreamConfigurationProvider(Microsoft.Extensions.Configuration.Xml.XmlStreamConfigurationSource source) : base (default(Microsoft.Extensions.Configuration.StreamConfigurationSource)) { }
         public override void Load(System.IO.Stream stream) { }
         public static System.Collections.Generic.IDictionary<string, string?> Read(System.IO.Stream stream, Microsoft.Extensions.Configuration.Xml.XmlDocumentDecryptor decryptor) { throw null; }
+        bool Microsoft.Extensions.Configuration.IConfigurationMergeMetadata.TryGetNodeInfo(string path, out Microsoft.Extensions.Configuration.ConfigurationNodeInfo info) { throw null; }
     }
     [System.Diagnostics.CodeAnalysis.RequiresDynamicCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml which may contain XSLTs in the xml. XSLTs require dynamic code.")]
     [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute("Microsoft.Extensions.Configuration.Xml can use EncryptedXml. If you use encrypted XML files, your application might not have the algorithm implementations it needs. To avoid this problem, one option you can use is a DynamicDependency attribute to keep the algorithm implementations in your application.")]

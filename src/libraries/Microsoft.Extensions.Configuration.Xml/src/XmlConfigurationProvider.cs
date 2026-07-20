@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
@@ -11,8 +12,10 @@ namespace Microsoft.Extensions.Configuration.Xml
     /// </summary>
     [RequiresDynamicCode(XmlDocumentDecryptor.RequiresDynamicCodeMessage)]
     [RequiresUnreferencedCode(XmlDocumentDecryptor.RequiresUnreferencedCodeMessage)]
-    public class XmlConfigurationProvider : FileConfigurationProvider
+    public class XmlConfigurationProvider : FileConfigurationProvider, IConfigurationMergeMetadata
     {
+        private Dictionary<string, ConfigurationNodeInfo>? _nodes;
+
         /// <summary>
         /// Initializes a new instance with the specified source.
         /// </summary>
@@ -27,7 +30,19 @@ namespace Microsoft.Extensions.Configuration.Xml
         /// <param name="stream">The stream to read.</param>
         public override void Load(Stream stream)
         {
-            Data = XmlStreamConfigurationProvider.Read(stream, Decryptor);
+            Data = XmlStreamConfigurationProvider.Read(stream, Decryptor, out _nodes);
+        }
+
+        bool IConfigurationMergeMetadata.TryGetNodeInfo(string path, out ConfigurationNodeInfo info)
+        {
+            Dictionary<string, ConfigurationNodeInfo>? nodes = _nodes;
+            if (nodes is not null && nodes.TryGetValue(path, out info))
+            {
+                return true;
+            }
+
+            info = default;
+            return false;
         }
     }
 }

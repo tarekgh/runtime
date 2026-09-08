@@ -88,7 +88,9 @@ namespace System.Globalization.Tests
             Assert.Throws<CultureNotFoundException>(() => CultureInfo.GetCultureInfo(name));
             Assert.Throws<CultureNotFoundException>(() => CultureInfo.GetCultureInfo(name, predefinedOnly: false));
             Assert.Throws<CultureNotFoundException>(() => CultureInfo.GetCultureInfo(name, predefinedOnly: true));
+            Assert.Throws<CultureNotFoundException>(() => CultureInfo.GetCultureInfo(name, "en-US"));
             Assert.Throws<CultureNotFoundException>(() => new CultureInfo(name));
+            Assert.Throws<CultureNotFoundException>(() => new CultureInfo(name, useUserOverride: false));
         }
 
         [ConditionalFact(typeof(GetCultureInfoTests), nameof(PlatformRejectsRootCultureAndRemoteExecutor))]

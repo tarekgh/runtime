@@ -124,6 +124,16 @@ namespace System.Globalization
                 return false;
             }
 
+            // "root" is the CLDR moniker for the root/invariant locale and is not a valid culture name.
+            // Reject it up front so the behavior is consistent across ICU builds: desktop ICU normalizes
+            // "root" to an empty name while some mobile ICU builds return it unchanged. This matches NLS,
+            // which does not recognize "root" either. The invariant culture ("" and "und") is handled by
+            // the short-circuits in GetCultureData before reaching this method.
+            if (realNameBuffer.Equals("root", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
             // Replace _ (alternate sort) with @collation= for ICU
             if (index > 0)
             {
@@ -152,12 +162,9 @@ namespace System.Globalization
 
             Debug.Assert(_sWindowsName != null);
 
-            // ICU normalizes the CLDR "root" locale (and any alias of it) to an empty name, which represents
-            // the invariant/root locale. The invariant culture is already handled by the empty-string and "und"
-            // short-circuits in GetCultureData, so reaching this point with an empty name means the caller passed
-            // a name such as "root" that is not a valid culture name. Reject it rather than producing an incomplete
-            // culture whose Name is "" (which raises NullReferenceException on internals and poisons the invariant
-            // culture's cache slot).
+            // Defense in depth: if an ICU build normalizes some other name to an empty locale name, reject it
+            // rather than producing a culture whose Name is "" (which is not the Invariant singleton and raises
+            // NullReferenceException on internals and poisons the invariant culture's cache slot).
             if (_sWindowsName.Length == 0)
             {
                 return false;

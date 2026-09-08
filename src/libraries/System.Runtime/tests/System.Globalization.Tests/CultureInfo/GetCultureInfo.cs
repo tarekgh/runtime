@@ -82,8 +82,9 @@ namespace System.Globalization.Tests
         public void GetCultureInfo_RootCultureName_Throws(string name)
         {
             // "root" is the CLDR moniker for the invariant/root locale, but it is not a valid culture name.
-            // ICU normalizes it to an empty name, which previously produced an incomplete culture whose Name
-            // was "" (raising NullReferenceException on internals and poisoning the invariant cache slot).
+            // On desktop ICU it normalizes to an empty name, which previously produced an incomplete culture
+            // whose Name was "" (raising NullReferenceException on internals and poisoning the invariant cache
+            // slot). Some other ICU builds return "root" unchanged. It is rejected consistently in all cases.
             Assert.Throws<CultureNotFoundException>(() => CultureInfo.GetCultureInfo(name));
             Assert.Throws<CultureNotFoundException>(() => CultureInfo.GetCultureInfo(name, predefinedOnly: false));
             Assert.Throws<CultureNotFoundException>(() => CultureInfo.GetCultureInfo(name, predefinedOnly: true));
